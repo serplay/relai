@@ -173,6 +173,7 @@ export default function TaskManager() {
           const updatedWorkflows: Record<string, WorkflowData> = {};
           for (const user of users) {
             updatedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+
           }
           setWorkflows(updatedWorkflows);
           
@@ -191,6 +192,7 @@ export default function TaskManager() {
             const updatedWorkflows: Record<string, WorkflowData> = {};
             for (const user of users) {
               updatedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+
             }
             setWorkflows(updatedWorkflows);
             
@@ -210,6 +212,7 @@ export default function TaskManager() {
           const deletedWorkflows: Record<string, WorkflowData> = {};
           for (const user of users) {
             deletedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+
           }
           setWorkflows(deletedWorkflows);
           
@@ -352,7 +355,7 @@ export default function TaskManager() {
                 <div className="text-xs text-muted-foreground">{workflow.incoming.length} waiting</div>
               </div>
               {workflow.incoming.map((item, index) => (
-                <Card key={item.id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-4 border border-glass-border hover:bg-glass-bg transition-all duration-200 relative">
+                <Card key={item._id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-4 border border-glass-border hover:bg-glass-bg transition-all duration-200 relative">
                   
                   {/* Queue position indicator */}
                   <div className="absolute -left-3 top-4 w-6 h-6 bg-status-waiting text-white rounded-full flex items-center justify-center text-xs font-medium">
@@ -387,7 +390,7 @@ export default function TaskManager() {
                 <span>Recent Handoffs</span>
               </h4>
               {workflow.recentHandoffs.slice(0, 2).map((item) => (
-                <Card key={item.id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-3 border border-glass-border opacity-60 relative">
+                <Card key={item._id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-3 border border-glass-border opacity-60 relative">
                   
                   {/* Handoff arrow */}
                   <div className="absolute -right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground">

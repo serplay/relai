@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
 from auth.routes import router as auth_router
+from slackBot.routes import router as slack_bot_router
+from task_routes import router as task_router
+
+# Load environment variables
+load_dotenv()
 
 # FastAPI app
 app = FastAPI(title="RelAI", version="1.0.0")
@@ -17,6 +23,12 @@ app.add_middleware(
 
 # Include auth routes
 app.include_router(auth_router)
+
+# Include slack bot routes
+app.include_router(slack_bot_router)
+
+# Include task routes
+app.include_router(task_router)
 
 
 @app.get("/")

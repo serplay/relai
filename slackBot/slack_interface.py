@@ -62,18 +62,23 @@ def send_to_slack(parsed_task):
         
         if not bot_token or not app_token:
             print("❌ SLACK_BOT_TOKEN or SLACK_APP_TOKEN not found in environment variables")
-            return simulate_slack_send(parsed_task)
+            return False
         
         # Validate token formats
         if not bot_token.startswith('xoxb-'):
             print("❌ SLACK_BOT_TOKEN should start with 'xoxb-'")
             print("   Get this from: https://api.slack.com/apps > Your App > OAuth & Permissions")
-            return simulate_slack_send(parsed_task)
+            return False
             
         if not app_token.startswith('xapp-'):
             print("❌ SLACK_APP_TOKEN should start with 'xapp-'")
             print("   Get this from: https://api.slack.com/apps > Your App > Basic Information > App-Level Tokens")
-            return simulate_slack_send(parsed_task)
+            return False
+        
+        # Check for placeholder values
+        if bot_token == "xoxb-your-bot-token-here" or app_token == "xapp-your-app-token-here":
+            print("❌ Slack tokens are placeholder values - please update your .env file")
+            return False
         
         # Initialize WebClient for sending messages
         client = WebClient(token=bot_token)
@@ -150,31 +155,11 @@ def send_to_slack(parsed_task):
             print(f"❌ Slack API Error: {error_code}")
             print(f"   Details: {e.response.get('ok', False)}")
         
-        print("Falling back to simulation...")
-        return simulate_slack_send(parsed_task)
+        return False
         
     except Exception as e:
         print(f"❌ Error sending to Slack: {e}")
-        print("Falling back to simulation...")
-        return simulate_slack_send(parsed_task)
-
-def simulate_slack_send(parsed_task):
-    """
-    Simulate sending to Slack (fallback)
-    """
-    recipient = parsed_task['recipient']
-    task = parsed_task['task']
-    due_date = parsed_task['due_date']
-    
-    print(f"📤 [SIMULATED] Message to {recipient}:")
-    print(f"   Task: {task}")
-    print(f"   Due: {due_date}")
-    
-    if parsed_task.get('response_required'):
-        print(f"   Response required: Yes")
-        print(f"   Output format: {parsed_task.get('output', 'confirmation')}")
-    
-    return False
+        return False
 
 def test_slack_connection():
     """

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
+
 export interface User {
   id: string;
   name: string;
@@ -8,7 +9,7 @@ export interface User {
 }
 
 export interface Task {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   progress: number;
@@ -16,9 +17,9 @@ export interface Task {
   estimatedHandoff: string;
   assignedTo?: string;
   status: 'active' | 'waiting' | 'completed';
-  timeReceived?: string;
-  timeHandedOff?: string;
-  relayedTo?: string;
+  created_at: string;
+  updated_at: string;
+  relayedAt?: string;
 }
 
 export interface WorkflowData {
@@ -99,7 +100,7 @@ export const relaiApi = {
     }
   },
 
-  async createTask(taskData: Omit<Task, 'id'>): Promise<Task> {
+  async createTask(taskData: Omit<Task, '_id' | 'created_at' | 'updated_at'>): Promise<Task> {
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -120,6 +121,7 @@ export const relaiApi = {
     } catch (error) {
       console.error('Error creating task:', error);
       throw error;
+
     }
   },
 
