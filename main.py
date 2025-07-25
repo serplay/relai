@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from auth.routes import router as auth_router
 from slackBot.routes import router as slack_bot_router
 from task_routes import router as task_router
+from user_routes import router as user_router
+from workflow_routes import router as workflow_router
 
 # Load environment variables
 load_dotenv()
@@ -29,6 +31,12 @@ app.include_router(slack_bot_router)
 
 # Include task routes
 app.include_router(task_router)
+
+# Include user routes
+app.include_router(user_router)
+
+# Include workflow routes
+app.include_router(workflow_router)
 
 
 @app.get("/")

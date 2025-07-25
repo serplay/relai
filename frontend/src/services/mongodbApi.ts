@@ -11,9 +11,6 @@ import type {
   TaskRelayRequest
 } from '@/integrations/mongodb/types';
 
-
-
-
 // Transform database row to API interface
 const transformUser = (row: any): User => ({
   _id: row._id,
@@ -38,7 +35,7 @@ const transformTask = (row: any): Task => ({
   updated_at: row.updated_at
 });
 
-export const relaiApi = {
+export const mongodbApi = {
   // Users
   async getUsers(): Promise<User[]> {
     try {
@@ -147,4 +144,4 @@ export const relaiApi = {
       };
     }
   },
-};
+}; 

@@ -5,19 +5,13 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, Bot, ArrowRight, Zap, Settings } from 'lucide-react';
-import { relaiApi, User as ApiUser, Task, WorkflowData } from '@/services/relaiApi';
+import { mongodbApi } from '@/services/mongodbApi';
+import type { User, Task, WorkflowData } from '@/integrations/mongodb/types';
 import CreateUserDialog from './CreateUserDialog';
 import CreateTaskDialog from './CreateTaskDialog';
 import RelAISidebar from './RelAISidebar';
 import RelayChat from './RelayChat';
 import { useToast } from '@/hooks/use-toast';
-
-interface User {
-  id: string; // username = id for simplicity
-  name: string;
-  avatar: string;
-  status: 'working' | 'idle';
-}
 
 export default function TaskManager() {
   const [message, setMessage] = useState('');
@@ -37,13 +31,13 @@ export default function TaskManager() {
         setLoading(true);
         
         // Load users
-        const fetchedUsers = await relaiApi.getUsers();
+        const fetchedUsers = await mongodbApi.getUsers();
         setUsers(fetchedUsers);
         
         // Load workflows for each user
         const workflowPromises = fetchedUsers.map(async (user) => {
-          const workflow = await relaiApi.getUserWorkflow(user.id);
-          return [user.id, workflow];
+          const workflow = await mongodbApi.getUserWorkflow(user._id);
+          return [user._id, workflow];
         });
         
         const workflowResults = await Promise.all(workflowPromises);
@@ -71,8 +65,8 @@ export default function TaskManager() {
       Object.entries(workflows).forEach(([userId, workflow]) => {
         if (workflow.activeWork && Math.random() < 0.08) {
           // Update progress in database
-          relaiApi.updateTaskProgress(
-            workflow.activeWork.id, 
+          mongodbApi.updateTaskProgress(
+            workflow.activeWork._id, 
             Math.min(100, workflow.activeWork.progress + Math.floor(Math.random() * 3))
           );
         }
@@ -117,7 +111,7 @@ export default function TaskManager() {
       // Initialize empty workflow for new user
       setWorkflows(prev => ({
         ...prev,
-        [newUser.id]: {
+        [newUser._id]: {
           activeWork: null,
           incoming: [],
           recentHandoffs: []
@@ -139,10 +133,10 @@ export default function TaskManager() {
       if (!assignedUser) return;
 
       // Reload workflow for the assigned user
-      const updatedWorkflow = await relaiApi.getUserWorkflow(assignedUser.id);
+      const updatedWorkflow = await relaiApi.getUserWorkflow(assignedUser._id);
       setWorkflows(prev => ({
         ...prev,
-        [assignedUser.id]: updatedWorkflow
+        [assignedUser._id]: updatedWorkflow
       }));
 
       toast({
@@ -168,11 +162,11 @@ export default function TaskManager() {
     try {
       switch (action) {
         case 'complete':
-          await relaiApi.updateTaskProgress(taskId, 100);
+          await mongodbApi.updateTaskProgress(taskId, 100);
           // Reload all workflows to reflect changes
           const updatedWorkflows: Record<string, WorkflowData> = {};
           for (const user of users) {
-            updatedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+            updatedWorkflows[user._id] = await mongodbApi.getUserWorkflow(user._id);
 
           }
           setWorkflows(updatedWorkflows);
@@ -191,12 +185,12 @@ export default function TaskManager() {
             // Reload workflows for affected users
             const updatedWorkflows: Record<string, WorkflowData> = {};
             for (const user of users) {
-              updatedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+              updatedWorkflows[user._id] = await relaiApi.getUserWorkflow(user._id);
 
             }
             setWorkflows(updatedWorkflows);
             
-            const targetUser = users.find(u => u.id === targetUserId);
+            const targetUser = users.find(u => u._id === targetUserId);
             toast({
               title: 'Task Handed Off',
               description: `Task relayed to ${targetUser?.name}.`,
@@ -211,7 +205,7 @@ export default function TaskManager() {
           // Reload all workflows
           const deletedWorkflows: Record<string, WorkflowData> = {};
           for (const user of users) {
-            deletedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+            deletedWorkflows[user._id] = await relaiApi.getUserWorkflow(user._id);
 
           }
           setWorkflows(deletedWorkflows);
