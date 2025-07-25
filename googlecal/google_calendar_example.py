@@ -178,6 +178,7 @@ def get_calendar_events():
     future_date = today_start + datetime.timedelta(days=10)
     
     
+
     
     
     now = today_start.isoformat()
@@ -268,5 +269,9 @@ def get_calendar_events():
     print(f"   Events: {events_next_3_days}")
     print(f"   Free time: {next_3_days_free_time:.1f} hours")
 
+    # return the hole summary as a string
+    return """Today: {events_today} events, {today_free_time:.1f} hours free
+Next 3 days: {events_next_3_days} events, {next_3_days_free_time:.1f} hours free"""
+
 if __name__ == '__main__':
-    get_calendar_events() 
+    print(get_calendar_events()) 
