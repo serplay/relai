@@ -1,4 +1,4 @@
-const API_BASE = 'https://relai.es/api';
+const API_BASE = 'http://localhost:8000/api';
 
 export interface User {
   id: string;
@@ -8,7 +8,7 @@ export interface User {
 }
 
 export interface Task {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   progress: number;
@@ -16,9 +16,9 @@ export interface Task {
   estimatedHandoff: string;
   assignedTo?: string;
   status: 'active' | 'waiting' | 'completed';
-  timeReceived?: string;
-  timeHandedOff?: string;
-  relayedTo?: string;
+  created_at: string;
+  updated_at: string;
+  relayedAt?: string;
 }
 
 export interface WorkflowData {
@@ -73,7 +73,7 @@ export const relaiApi = {
     }
   },
 
-  async createTask(taskData: Omit<Task, 'id'>): Promise<Task> {
+  async createTask(taskData: Omit<Task, '_id' | 'created_at' | 'updated_at'>): Promise<Task> {
     try {
       const response = await fetch(`${API_BASE}/tasks`, {
         method: 'POST',
@@ -86,7 +86,9 @@ export const relaiApi = {
       console.error('Error creating task:', error);
       // Return mock response for presentation
       return {
-        id: Date.now().toString(),
+        _id: Date.now().toString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         ...taskData,
       };
     }

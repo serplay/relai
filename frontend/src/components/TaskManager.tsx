@@ -257,11 +257,11 @@ export default function TaskManager() {
     let taskOwner: string = '';
     
     Object.entries(relayWorkflows).forEach(([userName, workflow]: [string, any]) => {
-      if (workflow.activeWork?.id === taskId) {
+      if (workflow.activeWork?._id === taskId) {
         taskToUpdate = workflow.activeWork;
         taskOwner = userName;
       } else {
-        const incomingTask = workflow.incoming.find((t: any) => t.id === taskId);
+        const incomingTask = workflow.incoming.find((t: any) => t._id === taskId);
         if (incomingTask) {
           taskToUpdate = incomingTask;
           taskOwner = userName;
@@ -277,7 +277,7 @@ export default function TaskManager() {
       switch (action) {
         case 'complete':
           // Move to recent handoffs and clear active work
-          if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?.id === taskId) {
+          if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?._id === taskId) {
             newWorkflows[taskOwner as keyof typeof newWorkflows].recentHandoffs.unshift({
               ...taskToUpdate,
               relayedTo: 'Completed',
@@ -290,7 +290,7 @@ export default function TaskManager() {
             const nextTask = newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.shift();
             if (nextTask) {
               newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = {
-                id: nextTask.id,
+                _id: nextTask._id,
                 title: nextTask.title,
                 description: nextTask.description,
                 progress: (nextTask as any).progress || 25,
@@ -305,14 +305,14 @@ export default function TaskManager() {
           const targetUser = data?.targetUser;
           if (targetUser && newWorkflows[targetUser as keyof typeof newWorkflows]) {
             // Remove from current owner
-            if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?.id === taskId) {
+            if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?._id === taskId) {
               newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = null;
               
               // Auto-assign next task from queue
               const nextTask = newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.shift();
               if (nextTask) {
                 newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = {
-                  id: nextTask.id,
+                  _id: nextTask._id,
                   title: nextTask.title,
                   description: nextTask.description,
                   progress: 25,
@@ -322,7 +322,7 @@ export default function TaskManager() {
               }
             } else {
               newWorkflows[taskOwner as keyof typeof newWorkflows].incoming = 
-                newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.filter((t: any) => t.id !== taskId);
+                newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.filter((t: any) => t._id !== taskId);
             }
             
             // Add to recent handoffs
@@ -350,14 +350,14 @@ export default function TaskManager() {
           
         case 'delete':
           // Remove from current owner
-          if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?.id === taskId) {
+          if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?._id === taskId) {
             newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = null;
             
             // Auto-assign next task from queue
             const nextTask = newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.shift();
             if (nextTask) {
               newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = {
-                id: nextTask.id,
+                _id: nextTask._id,
                 title: nextTask.title,
                 description: nextTask.description,
                 progress: 25,
@@ -367,7 +367,7 @@ export default function TaskManager() {
             }
           } else {
             newWorkflows[taskOwner as keyof typeof newWorkflows].incoming = 
-              newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.filter((t: any) => t.id !== taskId);
+              newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.filter((t: any) => t._id !== taskId);
           }
           break;
       }
@@ -497,7 +497,7 @@ export default function TaskManager() {
                 <div className="text-xs text-muted-foreground">{workflow.incoming.length} waiting</div>
               </div>
               {workflow.incoming.map((item, index) => (
-                <Card key={item.id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-4 border border-glass-border hover:bg-glass-bg transition-all duration-200 relative">
+                <Card key={item._id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-4 border border-glass-border hover:bg-glass-bg transition-all duration-200 relative">
                   
                   {/* Queue position indicator */}
                   <div className="absolute -left-3 top-4 w-6 h-6 bg-status-waiting text-white rounded-full flex items-center justify-center text-xs font-medium">
@@ -532,7 +532,7 @@ export default function TaskManager() {
                 <span>Recent Handoffs</span>
               </h4>
               {workflow.recentHandoffs.slice(0, 2).map((item) => (
-                <Card key={item.id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-3 border border-glass-border opacity-60 relative">
+                <Card key={item._id} className="backdrop-blur-xl bg-glass-frosted rounded-xl p-3 border border-glass-border opacity-60 relative">
                   
                   {/* Handoff arrow */}
                   <div className="absolute -right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground">
