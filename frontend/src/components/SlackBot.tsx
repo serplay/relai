@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { 
   Send, 
   Bot, 
@@ -17,7 +18,8 @@ import {
   Settings,
   Zap,
   Clock,
-  User
+  User,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -54,6 +56,8 @@ interface SlackConfig {
 export default function SlackBot() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStep, setLoadingStep] = useState('');
   const [parsedTasks, setParsedTasks] = useState<TaskResponse[]>([]);
   const [slackStatus, setSlackStatus] = useState<SlackStatus | null>(null);
   const [slackConfig, setSlackConfig] = useState<SlackConfig | null>(null);
@@ -88,11 +92,32 @@ export default function SlackBot() {
     }
   };
 
+  const simulateLoadingSteps = () => {
+    const steps = [
+      { progress: 20, step: 'Parsing task with AI...' },
+      { progress: 40, step: 'Extracting recipient and details...' },
+      { progress: 60, step: 'Validating Slack configuration...' },
+      { progress: 80, step: 'Sending message to Slack...' },
+      { progress: 100, step: 'Task completed!' }
+    ];
+
+    steps.forEach(({ progress, step }, index) => {
+      setTimeout(() => {
+        setLoadingProgress(progress);
+        setLoadingStep(step);
+      }, index * 800);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
 
     setIsLoading(true);
+    setLoadingProgress(0);
+    setLoadingStep('Starting...');
+    simulateLoadingSteps();
+
     try {
       const endpoint = sendToSlack ? '/slack-bot/parse-task' : '/slack-bot/parse-only';
       const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -109,14 +134,31 @@ export default function SlackBot() {
       
       if (data.success) {
         setParsedTasks(prev => [data, ...prev]);
-        toast({
-          title: "Task Processed",
-          description: data.message,
-        });
+        
+        if (sendToSlack) {
+          if (data.slack_sent) {
+            toast({
+              title: "✅ Task Sent to Slack!",
+              description: `Message sent to ${data.parsed_task?.recipient} in #${slackConfig?.config.default_channel}`,
+            });
+          } else {
+            toast({
+              title: "⚠️ Task Parsed but Not Sent",
+              description: "Task was parsed successfully but couldn't be sent to Slack. Check your configuration.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "✅ Task Parsed Successfully",
+            description: data.message,
+          });
+        }
+        
         setInputText('');
       } else {
         toast({
-          title: "Error",
+          title: "❌ Error Processing Task",
           description: data.message,
           variant: "destructive",
         });
@@ -124,12 +166,17 @@ export default function SlackBot() {
     } catch (error) {
       console.error('Failed to process task:', error);
       toast({
-        title: "Error",
-        description: "Failed to process task. Please try again.",
+        title: "❌ Network Error",
+        description: "Failed to connect to the server. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      // Keep the loading state for a moment to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+        setLoadingStep('');
+      }, 1000);
     }
   };
 
@@ -152,6 +199,29 @@ export default function SlackBot() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Configuration Warning */}
+      {slackConfig && !slackConfig.all_configured && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-yellow-800">
+                Slack Integration Not Configured
+              </h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>To send messages to Slack, you need to:</p>
+                <ol className="list-decimal list-inside mt-1 space-y-1">
+                  <li>Create a Slack app at <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="underline">https://api.slack.com/apps</a></li>
+                  <li>Get your Bot User OAuth Token (starts with <code className="bg-yellow-100 px-1 rounded">xoxb-</code>)</li>
+                  <li>Get your App-Level Token (starts with <code className="bg-yellow-100 px-1 rounded">xapp-</code>)</li>
+                  <li>Update your <code className="bg-yellow-100 px-1 rounded">.env</code> file with the real tokens</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Bot className="h-8 w-8 text-blue-500" />
@@ -245,11 +315,22 @@ export default function SlackBot() {
               </Label>
             </div>
 
-            <Button type="submit" disabled={isLoading || !inputText.trim()}>
+            {/* Loading Progress Bar */}
+            {isLoading && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{loadingStep}</span>
+                  <span className="text-muted-foreground">{loadingProgress}%</span>
+                </div>
+                <Progress value={loadingProgress} className="w-full" />
+              </div>
+            )}
+
+            <Button type="submit" disabled={isLoading || !inputText.trim()} className="w-full">
               {isLoading ? (
                 <>
-                  <Bot className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing Task...
                 </>
               ) : (
                 <>
@@ -280,18 +361,18 @@ export default function SlackBot() {
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       <span className="font-medium">Task Parsed Successfully</span>
                     </div>
-                                         <div className="flex items-center space-x-2">
-                       {taskResponse.slack_sent ? (
-                         <span className="inline-flex items-center rounded-full bg-green-100 text-green-800 px-2.5 py-0.5 text-xs font-semibold">
-                           <MessageSquare className="h-3 w-3 mr-1" />
-                           Sent to Slack
-                         </span>
-                       ) : (
-                         <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-800 px-2.5 py-0.5 text-xs font-semibold">
-                           Parse Only
-                         </span>
-                       )}
-                     </div>
+                    <div className="flex items-center space-x-2">
+                      {taskResponse.slack_sent ? (
+                        <span className="inline-flex items-center rounded-full bg-green-100 text-green-800 px-2.5 py-0.5 text-xs font-semibold">
+                          <MessageSquare className="h-3 w-3 mr-1" />
+                          Sent to Slack
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-800 px-2.5 py-0.5 text-xs font-semibold">
+                          Parse Only
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {taskResponse.parsed_task && (
@@ -309,17 +390,17 @@ export default function SlackBot() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                                                 <div className="flex items-center space-x-2">
-                           <Zap className="h-4 w-4 text-muted-foreground" />
-                           <span className="font-medium">Response Required:</span>
-                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                             taskResponse.parsed_task.response_required 
-                               ? "bg-blue-100 text-blue-800" 
-                               : "bg-gray-100 text-gray-800"
-                           }`}>
-                             {taskResponse.parsed_task.response_required ? "Yes" : "No"}
-                           </span>
-                         </div>
+                        <div className="flex items-center space-x-2">
+                          <Zap className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">Response Required:</span>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            taskResponse.parsed_task.response_required 
+                              ? "bg-blue-100 text-blue-800" 
+                              : "bg-gray-100 text-gray-800"
+                          }`}>
+                            {taskResponse.parsed_task.response_required ? "Yes" : "No"}
+                          </span>
+                        </div>
                         <div className="flex items-center space-x-2">
                           <Bot className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">Output:</span>

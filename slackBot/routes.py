@@ -39,17 +39,41 @@ async def parse_and_send_task(task_request: TaskRequest):
         
         # Try to send to Slack if configured
         slack_sent = False
+        slack_error = None
+        
         try:
-            send_to_slack(parsed_task)
-            slack_sent = True
+            # Check if Slack is properly configured first
+            bot_token = os.getenv('SLACK_BOT_TOKEN')
+            app_token = os.getenv('SLACK_APP_TOKEN')
+            
+            if not bot_token or not app_token:
+                slack_error = "Slack tokens not configured"
+            elif bot_token == "xoxb-your-bot-token-here" or app_token == "xapp-your-app-token-here":
+                slack_error = "Slack tokens are placeholder values - please update your .env file"
+            else:
+                # Attempt to send to Slack
+                result = send_to_slack(parsed_task)
+                if result:
+                    slack_sent = True
+                else:
+                    slack_error = "Slack sending failed - check your configuration"
+                    
         except Exception as e:
-            # Slack sending failed, but parsing succeeded
+            slack_error = f"Slack sending error: {str(e)}"
             print(f"Slack sending failed: {e}")
+        
+        # Determine the appropriate message
+        if slack_sent:
+            message = f"Task parsed and sent to Slack successfully"
+        elif slack_error:
+            message = f"Task parsed successfully, but Slack sending failed: {slack_error}"
+        else:
+            message = "Task parsed successfully"
         
         return TaskResponse(
             success=True,
             parsed_task=parsed_task,
-            message="Task parsed successfully",
+            message=message,
             slack_sent=slack_sent
         )
         
