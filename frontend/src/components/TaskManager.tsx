@@ -24,144 +24,63 @@ export default function TaskManager() {
   const [focusedUser, setFocusedUser] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'focused'>('overview');
   const [chatOpen, setChatOpen] = useState(false);
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: 'yazide',
-      name: 'Yazide',
-      avatar: '/lovable-uploads/ad7ac94b-537e-4407-8cdc-26c4a1f25f84.png',
-      status: 'working'
-    },
-    {
-      id: 'elliott', 
-      name: 'Elliott',
-      avatar: '/lovable-uploads/ad7ac94b-537e-4407-8cdc-26c4a1f25f84.png',
-      status: 'working'
-    },
-    {
-      id: 'relai',
-      name: 'RelAI',
-      avatar: '/lovable-uploads/ad7ac94b-537e-4407-8cdc-26c4a1f25f84.png',
-      status: 'working'
-    }
-  ]);
-  
-  const [relayWorkflows, setRelayWorkflows] = useState({
-    'Yazide': {
-      activeWork: {
-        id: '1',
-        title: 'Design System Components',
-        description: 'Building reusable UI components for the platform',
-        progress: 75,
-        relayedFrom: null,
-        estimatedHandoff: '2h'
-      },
-      incoming: [
-        {
-          id: '2',
-          title: 'User Research Insights',
-          description: 'Analysis findings from recent user interviews',
-          relayedFrom: 'RelAI',
-          timeReceived: '15 min ago'
-        }
-      ],
-      recentHandoffs: [
-        {
-          id: '3',
-          title: 'Brand Guidelines',
-          description: 'Complete visual identity documentation',
-          relayedTo: 'Elliott',
-          timeHandedOff: '1h ago'
-        }
-      ]
-    },
-    'Elliott': {
-      activeWork: {
-        id: '4',
-        title: 'Payment Gateway Integration',
-        description: 'Implementing Stripe payment processing',
-        progress: 60,
-        relayedFrom: 'RelAI',
-        estimatedHandoff: '4h'
-      },
-      incoming: [
-        {
-          id: '5',
-          title: 'Brand Guidelines Implementation',
-          description: 'Apply new visual identity to existing components',
-          relayedFrom: 'Yazide',
-          timeReceived: '45 min ago'
-        }
-      ],
-      recentHandoffs: [
-        {
-          id: '6',
-          title: 'API Performance Optimization',
-          description: 'Database query improvements and caching',
-          relayedTo: 'RelAI',
-          timeHandedOff: '3h ago'
-        }
-      ]
-    },
-    'RelAI': {
-      activeWork: {
-        id: '7',
-        title: 'Auto Testing & Validation',
-        description: 'Running automated test suites and code quality checks',
-        progress: 90,
-        relayedFrom: 'Elliott',
-        estimatedHandoff: 'Auto'
-      },
-      incoming: [
-        {
-          id: '8',
-          title: 'Code Optimization Queue',
-          description: 'Automated performance monitoring and optimization tasks',
-          relayedFrom: 'System',
-          timeReceived: 'Continuous'
-        },
-        {
-          id: '11',
-          title: 'Security Scan Pipeline',
-          description: 'Automated security vulnerability detection and reporting',
-          relayedFrom: 'System',
-          timeReceived: 'Running'
-        }
-      ],
-      recentHandoffs: [
-        {
-          id: '9',
-          title: 'Deploy Ready Package',
-          description: 'Automated build validation and deployment preparation',
-          relayedTo: 'Elliott',
-          timeHandedOff: '2h ago'
-        },
-        {
-          id: '10',
-          title: 'Processed Analytics Report',
-          description: 'Auto-generated insights from user behavior data',
-          relayedTo: 'Yazide',
-          timeHandedOff: '15 min ago'
-        }
-      ]
-    }
-  });
+  const [users, setUsers] = useState<User[]>([]);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
+  const [loading, setLoading] = useState(true);
   
   const { toast } = useToast();
 
+  // Load initial data from Supabase
   useEffect(() => {
-    // Simulate relay handoffs and progress updates
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // Load users
+        const fetchedUsers = await relaiApi.getUsers();
+        setUsers(fetchedUsers);
+        
+        // Load workflows for each user
+        const workflowPromises = fetchedUsers.map(async (user) => {
+          const workflow = await relaiApi.getUserWorkflow(user.id);
+          return [user.id, workflow];
+        });
+        
+        const workflowResults = await Promise.all(workflowPromises);
+        const workflowsById = Object.fromEntries(workflowResults);
+        setWorkflows(workflowsById);
+        
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load data from database.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [toast]);
+
+  // Simulate progress updates
+  useEffect(() => {
     const interval = setInterval(() => {
-      Object.keys(relayWorkflows).forEach(user => {
-        const workflow = relayWorkflows[user as keyof typeof relayWorkflows];
+      Object.entries(workflows).forEach(([userId, workflow]) => {
         if (workflow.activeWork && Math.random() < 0.08) {
-          // Simulate progress updates
-          workflow.activeWork.progress = Math.min(100, workflow.activeWork.progress + Math.floor(Math.random() * 3));
+          // Update progress in database
+          relaiApi.updateTaskProgress(
+            workflow.activeWork.id, 
+            Math.min(100, workflow.activeWork.progress + Math.floor(Math.random() * 3))
+          );
         }
       });
     }, 4000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [workflows]);
 
   const getStatusBadge = (type: 'active' | 'waiting' | 'automated' | 'relai') => {
     const variants = {
@@ -192,194 +111,133 @@ export default function TaskManager() {
     }
   };
 
-  const handleUserCreated = (newUser: User) => {
-    setUsers(prev => [...prev, newUser]);
-    // Initialize empty workflow for new user
-    setRelayWorkflows(prev => ({
-      ...prev,
-      [newUser.name]: {
-        activeWork: null,
-        incoming: [],
-        recentHandoffs: []
-      }
-    }));
-    
-    toast({
-      title: 'Success!',
-      description: `${newUser.name} joined the relay system.`,
-    });
-  };
-
-  const handleTaskCreated = (newTask: Task) => {
-    const assignedUser = users.find(u => u.id === newTask.assignedTo);
-    if (!assignedUser) return;
-
-    // Add task to the assigned user's active work or incoming queue
-    setRelayWorkflows(prev => {
-      const userWorkflow = prev[assignedUser.name as keyof typeof prev];
-      if (!userWorkflow) return prev;
-
-      const updatedWorkflow = {
-        ...userWorkflow,
-        // If user has no active work, make this their active work
-        // Otherwise add to incoming queue
-        ...(userWorkflow.activeWork 
-          ? { incoming: [...userWorkflow.incoming, { ...newTask, timeReceived: 'Just now' }] }
-          : { activeWork: newTask }
-        )
-      };
-
-      return {
+  const handleUserCreated = async (newUser: User) => {
+    try {
+      setUsers(prev => [...prev, newUser]);
+      // Initialize empty workflow for new user
+      setWorkflows(prev => ({
         ...prev,
-        [assignedUser.name]: updatedWorkflow
-      };
-    });
-
-    toast({
-      title: 'Task Created!',
-      description: `"${newTask.title}" assigned to ${assignedUser.name}.`,
-    });
+        [newUser.id]: {
+          activeWork: null,
+          incoming: [],
+          recentHandoffs: []
+        }
+      }));
+      
+      toast({
+        title: 'Success!',
+        description: `${newUser.name} joined the relay system.`,
+      });
+    } catch (error) {
+      console.error('Error in handleUserCreated:', error);
+    }
   };
 
-  const handleUserFocus = (userName: string) => {
-    if (focusedUser === userName) {
+  const handleTaskCreated = async (newTask: Task) => {
+    try {
+      const assignedUser = users.find(u => u.id === newTask.assignedTo);
+      if (!assignedUser) return;
+
+      // Reload workflow for the assigned user
+      const updatedWorkflow = await relaiApi.getUserWorkflow(assignedUser.id);
+      setWorkflows(prev => ({
+        ...prev,
+        [assignedUser.id]: updatedWorkflow
+      }));
+
+      toast({
+        title: 'Task Created!',
+        description: `"${newTask.title}" assigned to ${assignedUser.name}.`,
+      });
+    } catch (error) {
+      console.error('Error in handleTaskCreated:', error);
+    }
+  };
+
+  const handleUserFocus = (userId: string) => {
+    if (focusedUser === userId) {
       setFocusedUser(null);
       setViewMode('overview');
     } else {
-      setFocusedUser(userName);
+      setFocusedUser(userId);
       setViewMode('focused');
     }
   };
 
-  const handleTaskAction = (action: string, taskId: string, data?: any) => {
-    // Find the task and its owner
-    let taskToUpdate: any = null;
-    let taskOwner: string = '';
-    
-    Object.entries(relayWorkflows).forEach(([userName, workflow]: [string, any]) => {
-      if (workflow.activeWork?._id === taskId) {
-        taskToUpdate = workflow.activeWork;
-        taskOwner = userName;
-      } else {
-        const incomingTask = workflow.incoming.find((t: any) => t._id === taskId);
-        if (incomingTask) {
-          taskToUpdate = incomingTask;
-          taskOwner = userName;
-        }
-      }
-    });
-
-    if (!taskToUpdate) return;
-
-    setRelayWorkflows(prev => {
-      const newWorkflows = { ...prev };
-      
+  const handleTaskAction = async (action: string, taskId: string, data?: any) => {
+    try {
       switch (action) {
         case 'complete':
-          // Move to recent handoffs and clear active work
-          if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?._id === taskId) {
-            newWorkflows[taskOwner as keyof typeof newWorkflows].recentHandoffs.unshift({
-              ...taskToUpdate,
-              relayedTo: 'Completed',
-              timeHandedOff: 'Just now',
-              progress: 100
-            });
-            newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = null;
-            
-            // Auto-assign next task from queue
-            const nextTask = newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.shift();
-            if (nextTask) {
-              newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = {
-                _id: nextTask._id,
-                title: nextTask.title,
-                description: nextTask.description,
-                progress: (nextTask as any).progress || 25,
-                relayedFrom: nextTask.relayedFrom,
-                estimatedHandoff: (nextTask as any).estimatedHandoff || '2h'
-              };
-            }
+          await relaiApi.updateTaskProgress(taskId, 100);
+          // Reload all workflows to reflect changes
+          const updatedWorkflows: Record<string, WorkflowData> = {};
+          for (const user of users) {
+            updatedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+
           }
+          setWorkflows(updatedWorkflows);
+          
+          toast({
+            title: 'Task Completed',
+            description: 'Task has been marked as completed.',
+          });
           break;
           
         case 'handoff':
-          const targetUser = data?.targetUser;
-          if (targetUser && newWorkflows[targetUser as keyof typeof newWorkflows]) {
-            // Remove from current owner
-            if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?._id === taskId) {
-              newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = null;
-              
-              // Auto-assign next task from queue
-              const nextTask = newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.shift();
-              if (nextTask) {
-                newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = {
-                  _id: nextTask._id,
-                  title: nextTask.title,
-                  description: nextTask.description,
-                  progress: 25,
-                  relayedFrom: nextTask.relayedFrom,
-                  estimatedHandoff: '2h'
-                };
-              }
-            } else {
-              newWorkflows[taskOwner as keyof typeof newWorkflows].incoming = 
-                newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.filter((t: any) => t._id !== taskId);
-            }
+          const targetUserId = data?.targetUser;
+          if (targetUserId) {
+            await relaiApi.relayTask(taskId, '', targetUserId);
             
-            // Add to recent handoffs
-            newWorkflows[taskOwner as keyof typeof newWorkflows].recentHandoffs.unshift({
-              ...taskToUpdate,
-              relayedTo: targetUser,
-              timeHandedOff: 'Just now'
+            // Reload workflows for affected users
+            const updatedWorkflows: Record<string, WorkflowData> = {};
+            for (const user of users) {
+              updatedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+
+            }
+            setWorkflows(updatedWorkflows);
+            
+            const targetUser = users.find(u => u.id === targetUserId);
+            toast({
+              title: 'Task Handed Off',
+              description: `Task relayed to ${targetUser?.name}.`,
             });
-            
-            // Add to target user
-            if (newWorkflows[targetUser as keyof typeof newWorkflows].activeWork) {
-              newWorkflows[targetUser as keyof typeof newWorkflows].incoming.push({
-                ...taskToUpdate,
-                relayedFrom: taskOwner,
-                timeReceived: 'Just now'
-              });
-            } else {
-              newWorkflows[targetUser as keyof typeof newWorkflows].activeWork = {
-                ...taskToUpdate,
-                relayedFrom: taskOwner
-              };
-            }
           }
           break;
           
         case 'delete':
-          // Remove from current owner
-          if (newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork?._id === taskId) {
-            newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = null;
-            
-            // Auto-assign next task from queue
-            const nextTask = newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.shift();
-            if (nextTask) {
-              newWorkflows[taskOwner as keyof typeof newWorkflows].activeWork = {
-                _id: nextTask._id,
-                title: nextTask.title,
-                description: nextTask.description,
-                progress: 25,
-                relayedFrom: nextTask.relayedFrom,
-                estimatedHandoff: '2h'
-              };
-            }
-          } else {
-            newWorkflows[taskOwner as keyof typeof newWorkflows].incoming = 
-              newWorkflows[taskOwner as keyof typeof newWorkflows].incoming.filter((t: any) => t._id !== taskId);
+          // For now, just mark as completed since we don't have a delete endpoint
+          await relaiApi.updateTaskProgress(taskId, 100);
+          
+          // Reload all workflows
+          const deletedWorkflows: Record<string, WorkflowData> = {};
+          for (const user of users) {
+            deletedWorkflows[user.id] = await relaiApi.getUserWorkflow(user.id);
+
           }
+          setWorkflows(deletedWorkflows);
+          
+          toast({
+            title: 'Task Removed',
+            description: 'Task has been removed from the queue.',
+          });
           break;
       }
-      
-      return newWorkflows;
-    });
+    } catch (error) {
+      console.error('Error handling task action:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to perform task action.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const renderRelayLane = (userName: string, isExpanded: boolean = false) => {
-    const workflow = relayWorkflows[userName as keyof typeof relayWorkflows];
-    const user = users.find(u => u.name === userName);
-    const isRelAI = userName === 'RelAI';
+  const renderRelayLane = (userId: string, isExpanded: boolean = false) => {
+    const workflow = workflows[userId];
+    const user = users.find(u => u.id === userId);
+    const isRelAI = user?.name === 'RelAI';
+    
+    if (!workflow || !user) return null;
     
     return (
       <div className={`${isExpanded ? 'w-full max-w-5xl' : 'w-full md:min-w-80 md:max-w-80'} transition-all duration-300`}>
@@ -400,14 +258,14 @@ export default function TaskManager() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Avatar className={`w-12 h-12 ring-2 ${isRelAI ? 'ring-status-relai/50 shadow-lg shadow-status-relai/20' : 'ring-border'}`}>
-                <AvatarImage src={user?.avatar} alt={userName} />
+                <AvatarImage src={user?.avatar} alt={user.name} />
                 <AvatarFallback className={`${isRelAI ? 'bg-status-relai/20 text-status-relai' : 'bg-muted'}`}>
-                  {userName === 'RelAI' ? <Bot className="w-6 h-6" /> : userName[0]}
+                  {user.name === 'RelAI' ? <Bot className="w-6 h-6" /> : user.name[0]}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h3 className="text-foreground font-semibold text-lg flex items-center space-x-2">
-                  <span>{isRelAI ? 'RelAI Automation' : userName}</span>
+                  <span>{isRelAI ? 'RelAI Automation' : user.name}</span>
                   {isRelAI && <Bot className="w-4 h-4 text-status-relai" />}
                 </h3>
                 <div className="flex items-center space-x-2">
@@ -578,9 +436,9 @@ export default function TaskManager() {
             
             {viewMode === 'overview' && (
               <div className="flex items-center space-x-2 md:space-x-4 text-xs md:text-sm text-muted-foreground">
-                <div>Active: {Object.values(relayWorkflows).filter(w => w.activeWork).length}</div>
+                <div>Active: {Object.values(workflows).filter(w => w.activeWork).length}</div>
                 <div>•</div>
-                <div>In Queue: {Object.values(relayWorkflows).reduce((acc, w) => acc + w.incoming.length, 0)}</div>
+                <div>In Queue: {Object.values(workflows).reduce((acc, w) => acc + w.incoming.length, 0)}</div>
               </div>
             )}
           </div>
@@ -593,7 +451,7 @@ export default function TaskManager() {
               {viewMode === 'focused' && focusedUser ? (
                 renderRelayLane(focusedUser, true)
               ) : (
-                users.map(user => renderRelayLane(user.name, false))
+                users.map(user => renderRelayLane(user.id, false))
               )}
             </div>
           </div>
@@ -609,9 +467,9 @@ export default function TaskManager() {
                   key={user.id}
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleUserFocus(user.name)}
+                  onClick={() => handleUserFocus(user.id)}
                   className={`
-                    ${focusedUser === user.name 
+                    ${focusedUser === user.id
                       ? 'bg-glass-frosted ring-2 ring-border scale-105 md:scale-110 h-8 md:h-10 px-2 md:px-4' 
                       : 'hover:bg-glass-frosted h-7 md:h-8 px-2 md:px-3'
                     } 
@@ -628,7 +486,7 @@ export default function TaskManager() {
                   <span className={`${focusedUser === user.name ? 'text-xs md:text-sm font-semibold' : 'text-xs font-medium'} hidden sm:inline`}>
                     {user.name}
                   </span>
-                  {relayWorkflows[user.name as keyof typeof relayWorkflows]?.activeWork && (
+                  {workflows[user.id]?.activeWork && (
                     <div className={`w-1 h-1 md:w-1.5 md:h-1.5 ${user.name === 'RelAI' ? 'bg-status-relai' : 'bg-status-active'} rounded-full animate-pulse`} />
                   )}
                   {user.name === 'RelAI' && focusedUser !== user.name && (
@@ -703,7 +561,7 @@ export default function TaskManager() {
           open={chatOpen}
           onOpenChange={setChatOpen}
           users={users}
-          workflows={relayWorkflows}
+          workflows={workflows}
           onTaskAction={handleTaskAction}
         />
       </div>
@@ -711,7 +569,7 @@ export default function TaskManager() {
       {/* RelAI Sidebar */}
       <RelAISidebar
         users={users}
-        workflows={relayWorkflows}
+        workflows={workflows}
         focusedUser={focusedUser}
         onTaskAction={handleTaskAction}
       />
