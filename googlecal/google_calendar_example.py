@@ -10,6 +10,29 @@ import pytz
 # Scopes - what permissions we need
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
+def authenticate():
+    """Handle Google Calendar authentication and return credentials"""
+    creds = None
+    
+    # Check if we have saved credentials
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    
+    # If no valid credentials, get new ones
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        
+        # Save credentials for next time
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+    
+    return creds
+
 def parse_event_time(event, local_tz=None):
     """Parse event start and end times, handling both datetime and all-day events, converting to local timezone"""
     if local_tz is None:
@@ -145,26 +168,9 @@ def find_free_time(events, min_free_hours=2, start_hour=8, end_hour=16, local_tz
     
     return free_periods
 
-def get_calendar_events():
-    creds = None
-    
-    # Check if we have saved credentials
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    
-    # If no valid credentials, get new ones
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        
-        # Save credentials for next time
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-    
+
+def get_calendar_events(creds):
+    """Fetch calendar events using provided credentials"""
     # Build the service
     service = build('calendar', 'v3', credentials=creds)
     
@@ -270,8 +276,10 @@ def get_calendar_events():
     print(f"   Free time: {next_3_days_free_time:.1f} hours")
 
     # return the hole summary as a string
-    return """Today: {events_today} events, {today_free_time:.1f} hours free
+    return f"""Today: {events_today} events, {today_free_time:.1f} hours free
 Next 3 days: {events_next_3_days} events, {next_3_days_free_time:.1f} hours free"""
 
 if __name__ == '__main__':
-    print(get_calendar_events()) 
+    # Handle authentication only when running as main
+    credentials = authenticate()
+    print(get_calendar_events(credentials)) 
