@@ -31,7 +31,7 @@ interface RelayChatProps {
   onOpenChange: (open: boolean) => void;
   users: UserType[];
   currentUser?: UserType;
-  workflows: any;
+  workflows: Record<string, any>;
   onTaskAction: (action: string, taskId: string, data?: any) => void;
 }
 
@@ -65,7 +65,7 @@ export default function RelayChat({
   }, [messages]);
 
   const getAvailableActions = (taskId: string, currentOwner: string): TaskAction[] => {
-    const otherUsers = users.filter(u => u.name !== currentOwner && u.name !== 'RelAI');
+    const otherUsers = users.filter(u => u.id !== currentOwner && u.name !== 'RelAI');
     const actions: TaskAction[] = [];
 
     // Complete task
@@ -90,7 +90,7 @@ export default function RelayChat({
         type: 'handoff',
         label: `➡️ Handoff to ${user.name}`,
         taskId,
-        targetUser: user.name,
+        targetUser: user.id,
         variant: 'secondary'
       });
     });

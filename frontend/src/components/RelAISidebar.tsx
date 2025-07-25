@@ -9,7 +9,7 @@ import { User } from '@/services/relaiApi';
 
 interface RelAISidebarProps {
   users: User[];
-  workflows: any;
+  workflows: Record<string, any>;
   focusedUser: string | null;
   onTaskAction: (action: string, taskId: string, data?: any) => void;
 }
@@ -23,9 +23,10 @@ export default function RelAISidebar({ users, workflows, focusedUser, onTaskActi
     }
     
     // Find any user with active work
-    for (const [userName, workflow] of Object.entries(workflows) as [string, any][]) {
+    for (const [userId, workflow] of Object.entries(workflows) as [string, any][]) {
       if (workflow.activeWork) {
-        return { ...workflow.activeWork, owner: userName };
+        const user = users.find(u => u.id === userId);
+        return { ...workflow.activeWork, owner: userId, ownerName: user?.name };
       }
     }
     return null;
@@ -70,8 +71,8 @@ export default function RelAISidebar({ users, workflows, focusedUser, onTaskActi
       }
     } else if (task.progress < 30) {
       // Suggest handoff if stuck
-      const availableUsers = users.filter(u => u.name !== taskOwner && u.name !== 'RelAI');
-      const idleUsers = availableUsers.filter(u => !workflows[u.name]?.activeWork);
+      const availableUsers = users.filter(u => u.id !== taskOwner && u.name !== 'RelAI');
+      const idleUsers = availableUsers.filter(u => !workflows[u.id]?.activeWork);
       
       if (idleUsers.length > 0) {
         steps.push({
@@ -80,7 +81,7 @@ export default function RelAISidebar({ users, workflows, focusedUser, onTaskActi
           title: 'Consider Handoff',
           description: `${idleUsers[0].name} is available and could help accelerate this task`,
           action: 'handoff',
-          targetUser: idleUsers[0].name,
+          targetUser: idleUsers[0].id,
           confidence: 'medium'
         });
       } else {
@@ -279,7 +280,9 @@ export default function RelAISidebar({ users, workflows, focusedUser, onTaskActi
                           className="text-xs h-7 w-full"
                           onClick={() => onTaskAction(step.action, currentTask.id, { targetUser: step.targetUser })}
                         >
-                          {step.type === 'complete' ? '✅ Complete Task' : `➡️ Handoff to ${step.targetUser}`}
+                          {step.type === 'complete' ? '✅ Complete Task' : 
+                           step.type === 'handoff' ? `➡️ Handoff to ${users.find(u => u.id === step.targetUser)?.name}` : 
+                           'Take Action'}
                         </Button>
                       )}
                     </div>
