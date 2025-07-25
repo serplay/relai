@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth.routes import router as auth_router
-from slack_bot.routes import router as slack_bot_router
+from slackBot.routes import router as slack_bot_router
 
 # FastAPI app
 app = FastAPI(title="RelAI", version="1.0.0")

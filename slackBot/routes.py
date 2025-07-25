@@ -6,11 +6,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# Import the LLM parser from the slackBot module
-import sys
-sys.path.append('slackBot')
-from llm_parser import parse_task
-from slack_interface import send_to_slack, test_slack_connection
+# Import the LLM parser and slack interface from the same folder
+from .llm_parser import parse_task
+from .slack_interface import send_to_slack, test_slack_connection
 
 load_dotenv()
 
