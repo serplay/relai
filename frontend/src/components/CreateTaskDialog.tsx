@@ -75,13 +75,16 @@ export default function CreateTaskDialog({ users, onTaskCreated }: CreateTaskDia
           <span className="text-xs">Create Task</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" aria-describedby="task-dialog-description">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Zap className="w-5 h-5" />
             <span>Create New Task</span>
           </DialogTitle>
         </DialogHeader>
+        <div id="task-dialog-description" className="sr-only">
+          Dialog for creating a new task with natural language description and user assignment
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="naturalLanguage">What needs to be done?</Label>

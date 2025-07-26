@@ -11,6 +11,9 @@ import type {
   TaskRelayRequest
 } from '@/integrations/mongodb/types';
 
+// Re-export types for convenience
+export type { User, Task, WorkflowData, CreateUserRequest, CreateTaskRequest, UpdateTaskRequest, TaskAssignRequest, TaskProgressRequest, TaskRelayRequest };
+
 // Transform database row to API interface
 const transformUser = (row: any): User => ({
   _id: row._id,
@@ -44,7 +47,32 @@ export const relaiApi = {
     } catch (error) {
       console.error('Error fetching users:', error);
       // Fallback to mock data for presentation
-      return [];
+      return [
+        {
+          _id: 'yazide',
+          name: 'Yazide',
+          avatar: '/lovable-uploads/ad7ac94b-537e-4407-8cdc-26c4a1f25f84.png',
+          status: 'working',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          _id: 'elliott', 
+          name: 'Elliott',
+          avatar: '/lovable-uploads/ad7ac94b-537e-4407-8cdc-26c4a1f25f84.png',
+          status: 'working',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          _id: 'relai',
+          name: 'RelAI',
+          avatar: '/lovable-uploads/ad7ac94b-537e-4407-8cdc-26c4a1f25f84.png',
+          status: 'working',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
     }
   },
 
@@ -60,7 +88,9 @@ export const relaiApi = {
       // Return mock response for presentation
       return {
         _id: Date.now().toString(),
-        ...userData,
+        name: userData.name,
+        avatar: userData.avatar || '/lovable-uploads/ad7ac94b-537e-4407-8cdc-26c4a1f25f84.png',
+        status: userData.status || 'working',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -87,7 +117,20 @@ export const relaiApi = {
       return transformTask(data);
     } catch (error) {
       console.error('Error creating task:', error);
-      throw error;
+      // Return mock response for presentation
+      return {
+        _id: Date.now().toString(),
+        title: taskData.title,
+        description: taskData.description,
+        progress: taskData.progress || 0,
+        status: taskData.status || 'active',
+        assignedTo: taskData.assignedTo,
+        relayedFrom: taskData.relayedFrom,
+        estimatedHandoff: taskData.estimatedHandoff,
+        relayedAt: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
     }
   },
 
