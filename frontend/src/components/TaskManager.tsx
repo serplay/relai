@@ -406,6 +406,19 @@ export default function TaskManager() {
     const user = users.find(u => u.name === userName);
     const isRelAI = userName === 'RelAI';
     
+    // Return early if workflow is undefined
+    if (!workflow) {
+      return (
+        <div className={`${isExpanded ? 'w-full max-w-5xl' : 'w-full md:min-w-80 md:max-w-80'} transition-all duration-300`}>
+          <div className="backdrop-blur-xl bg-lane-glass rounded-2xl p-6 border border-glass-border shadow-sm mb-6">
+            <div className="text-center text-muted-foreground">
+              <p>No workflow data for {userName}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className={`${isExpanded ? 'w-full max-w-5xl' : 'w-full md:min-w-80 md:max-w-80'} transition-all duration-300`}>
         {/* Relay Lane Header */}
@@ -618,7 +631,11 @@ export default function TaskManager() {
               {viewMode === 'focused' && focusedUser ? (
                 renderRelayLane(focusedUser, true)
               ) : (
-                users.map(user => renderRelayLane(user.name, false))
+                users.map(user => (
+                  <div key={user._id}>
+                    {renderRelayLane(user.name, false)}
+                  </div>
+                ))
               )}
             </div>
           </div>
