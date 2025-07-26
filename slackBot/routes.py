@@ -18,6 +18,10 @@ class TaskRequest(BaseModel):
     raw_text: str
     user_id: Optional[str] = None
 
+class CreateTaskRequest(BaseModel):
+    task: str
+    channel: Optional[str] = None
+
 class TaskResponse(BaseModel):
     success: bool
     parsed_task: Optional[Dict[str, Any]] = None
@@ -28,10 +32,77 @@ class SlackStatusResponse(BaseModel):
     connected: bool
     message: str
 
+@router.post("/create-task", response_model=TaskResponse)
+async def create_task_from_natural_language(request: CreateTaskRequest):
+    """
+    Create a Slack message from a natural language task description.
+    This is the main endpoint for creating tasks via the Slack bot.
+    """
+    try:
+        # Parse the natural language task
+        parsed_task = parse_task(request.task)
+        
+        # Override channel if specified
+        if request.channel:
+            # Store original channel
+            original_channel = os.getenv('SLACK_DEFAULT_CHANNEL', 'general')
+            os.environ['SLACK_DEFAULT_CHANNEL'] = request.channel
+            
+        # Send to Slack
+        slack_sent = False
+        slack_error = None
+        
+        try:
+            # Check if Slack is properly configured
+            bot_token = os.getenv('SLACK_BOT_TOKEN')
+            app_token = os.getenv('SLACK_APP_TOKEN')
+            
+            if not bot_token or not app_token:
+                slack_error = "Slack tokens not configured"
+            elif bot_token == "xoxb-your-bot-token-here" or app_token == "xapp-your-app-token-here":
+                slack_error = "Slack tokens are placeholder values - please update your .env file"
+            else:
+                # Send to Slack
+                result = send_to_slack(parsed_task)
+                if result:
+                    slack_sent = True
+                else:
+                    slack_error = "Failed to send message to Slack"
+                    
+        except Exception as e:
+            slack_error = f"Slack sending error: {str(e)}"
+            print(f"Slack sending failed: {e}")
+        finally:
+            # Restore original channel if it was overridden
+            if request.channel:
+                os.environ['SLACK_DEFAULT_CHANNEL'] = original_channel
+        
+        # Determine response message
+        if slack_sent:
+            message = f"Task created and sent to Slack successfully"
+        elif slack_error:
+            message = f"Task parsed successfully, but failed to send to Slack: {slack_error}"
+        else:
+            message = "Task parsed successfully"
+        
+        return TaskResponse(
+            success=True,
+            parsed_task=parsed_task,
+            message=message,
+            slack_sent=slack_sent
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create task: {str(e)}"
+        )
+
 @router.post("/parse-task", response_model=TaskResponse)
 async def parse_and_send_task(task_request: TaskRequest):
     """
     Parse a natural language task and optionally send it to Slack
+    (Legacy endpoint - use /create-task for new implementations)
     """
     try:
         # Parse the task using the LLM parser
