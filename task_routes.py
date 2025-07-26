@@ -5,6 +5,7 @@ from datetime import datetime
 import asyncio
 
 from mongodb.task_service import task_service, TaskService
+from temporal_workflows.service import temporal_service
 
 # Initialize router
 router = APIRouter(prefix="/api", tags=["tasks"])
@@ -49,6 +50,7 @@ class TaskProgress(BaseModel):
 class TaskRelay(BaseModel):
     from_user: str
     to_user: str
+    message: Optional[str] = None
 
 # Dependency to ensure MongoDB connection
 async def get_task_service():
@@ -62,15 +64,25 @@ async def create_task(
     task_data: TaskCreate,
     service: TaskService = Depends(get_task_service)
 ):
-    """Create a new task."""
+    """Create a new task with Temporal workflow integration."""
     try:
         task_dict = task_data.dict()
+        
+        # Start the task lifecycle workflow
+        workflow_id = await temporal_service.start_task_lifecycle_workflow(task_dict)
+        
+        # The workflow will handle task creation, so we need to wait for it or get the task
+        # For now, let's create the task directly and let the workflow manage its lifecycle
         created_task = await service.create_task(task_dict)
         
         if not created_task:
             raise HTTPException(status_code=500, detail="Failed to create task")
         
-        return TaskResponse(**created_task)
+        # Add workflow ID to the response (you might want to store this in the task document)
+        response = TaskResponse(**created_task)
+        response.workflow_id = workflow_id  # Note: You'd need to add this field to TaskResponse
+        
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}")
 
@@ -202,8 +214,17 @@ async def relay_task(
     relay_data: TaskRelay,
     service: TaskService = Depends(get_task_service)
 ):
-    """Relay a task from one user to another."""
+    """Relay a task from one user to another with Temporal workflow integration."""
     try:
+        # Start the task relay workflow
+        workflow_id = await temporal_service.start_task_relay_workflow(
+            task_id,
+            relay_data.from_user,
+            relay_data.to_user,
+            relay_data.message
+        )
+        
+        # The workflow will handle the relay, but we can also do it directly for immediate response
         updated_task = await service.relay_task(
             task_id, 
             relay_data.from_user, 

@@ -5,6 +5,7 @@ from datetime import datetime
 import asyncio
 
 from mongodb.user_service import user_service, UserService
+from temporal_workflows.service import temporal_service
 
 # Initialize router
 router = APIRouter(prefix="/api", tags=["users"])
@@ -43,13 +44,28 @@ async def create_user(
     user_data: UserCreate,
     service: UserService = Depends(get_user_service)
 ):
-    """Create a new user."""
+    """Create a new user with onboarding workflow integration."""
     try:
         user_dict = user_data.dict()
         created_user = await service.create_user(user_dict)
         
         if not created_user:
             raise HTTPException(status_code=500, detail="Failed to create user")
+        
+        # Start user onboarding workflow
+        user_id = str(created_user["_id"])
+        onboarding_data = {
+            "user_id": user_id,
+            "name": created_user["name"],
+            "created_at": created_user["created_at"].isoformat()
+        }
+        
+        try:
+            workflow_id = await temporal_service.start_user_onboarding_workflow(onboarding_data)
+            # You might want to store the workflow_id in the user document
+        except Exception as e:
+            # Log the error but don't fail user creation
+            print(f"Warning: Could not start onboarding workflow for user {user_id}: {e}")
         
         return UserResponse(**created_user)
     except Exception as e:
